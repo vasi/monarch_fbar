@@ -4,4 +4,6 @@ version = "0.1.0"
 description = "Get FinCEN FBAR data from Monarch Money"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "monarchmoney>=0.1.15",
+]
