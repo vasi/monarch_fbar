@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional, Set
 
 import yaml
 from monarchmoney import MonarchMoney
@@ -8,8 +8,6 @@ from monarchmoney import MonarchMoney
 
 @dataclass(order=True)
 class Account(yaml.YAMLObject):
-    CONFIG = "accounts.yaml"
-
     # User has yet to define how to handle this account
     CURRENCY_TODO = "TODO"
     # User requests skipping this account
@@ -33,6 +31,11 @@ class Account(yaml.YAMLObject):
     def skip(self) -> bool:
         return self.currency.upper() == self.CURRENCY_SKIP
 
+    def currency_symbol(self) -> Optional[str]:
+        if self.skip() or self.needs_editing():
+            return None
+        return self.currency.upper()
+
     @classmethod
     async def __fetch_from_monarch(cls, mm: MonarchMoney) -> List[Account]:
         data = await mm.get_accounts()
@@ -52,26 +55,28 @@ class Account(yaml.YAMLObject):
         return accounts
 
     @classmethod
-    def __yaml_dump(cls, accounts: List[Account]):
-        with open(cls.CONFIG, "w") as f:
+    def __yaml_dump(cls, config: str, accounts: List[Account]):
+        with open(config, "w") as f:
             yaml.safe_dump(accounts, f, sort_keys=False)
 
     @classmethod
-    def __yaml_load(cls) -> List[Account]:
+    def __yaml_load(cls, config: str) -> List[Account]:
         try:
-            with open(cls.CONFIG) as f:
+            with open(config) as f:
                 return yaml.safe_load(f)
 
         except FileNotFoundError:
             return []
 
     @classmethod
-    async def load_merged(cls, mm: MonarchMoney) -> tuple[List[Account], bool]:
+    async def load(
+        cls, mm: MonarchMoney, config_file: Optional[str]
+    ) -> tuple[List[Account], bool]:
         """Returns true in config needs editing"""
         monarch_list = await cls.__fetch_from_monarch(mm)
         monarch = {a.id: a for a in monarch_list}
 
-        config_list = cls.__yaml_load()
+        config_list = cls.__yaml_load(config_file)
         config = {a.id: a for a in config_list}
 
         new_list = []
@@ -84,8 +89,12 @@ class Account(yaml.YAMLObject):
 
         if any(a.needs_editing() for a in new_list):
             new_list.sort()
-            cls.__yaml_dump(new_list)
+            cls.__yaml_dump(config_file, new_list)
             return new_list, True
         else:
             result = [a for a in config_list if not a.skip()]
             return result, False
+
+    @classmethod
+    def all_currencies(cls, accounts: List[Account]) -> Set[str]:
+        return {a.currency_symbol() for a in accounts}
