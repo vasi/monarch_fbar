@@ -1,25 +1,26 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 from monarchmoney import MonarchMoney
 
 
-@dataclass
+@dataclass(order=True)
 class Account(yaml.YAMLObject):
     CONFIG = "accounts.yaml"
-
-    __EXCLUDED_TYPES = {"credit", "loan", "other_asset"}
 
     # User has yet to define how to handle this account
     CURRENCY_TODO = "TODO"
     # User requests skipping this account
     CURRENCY_SKIP = "SKIP"
 
-    id: str
-    institution: Optional[str]
+    INSTITUTION_UNKNOWN = "UNKNOWN"
+
+    # Order by institution, it's easiest to add to FBAR
+    institution: str
     name: str
+    id: str
     currency: str
 
     yaml_loader = yaml.SafeLoader
@@ -31,20 +32,18 @@ class Account(yaml.YAMLObject):
         data = await mm.get_accounts()
         accounts = []
         for a in data["accounts"]:
-            account_type = a["type"]["name"]
-            if account_type in cls.__EXCLUDED_TYPES:
+            if not a["isAsset"]:
                 continue
+
+            institution = (a["institution"] or {}).get("name", cls.INSTITUTION_UNKNOWN)
             account = cls(
                 id=a["id"],
-                institution=(a["institution"] or {}).get("name"),
+                institution=institution,
                 name=a["displayName"],
                 currency=cls.CURRENCY_TODO,
             )
             accounts.append(account)
         return accounts
-
-    def __repr__(self) -> str:
-        return f"<Account {self.name!r} {self.institution!r} {self.id} {self.currency}>"
 
     @classmethod
     def __yaml_dump(cls, accounts: List[Account]):
@@ -78,7 +77,7 @@ class Account(yaml.YAMLObject):
                 result.append(monarch[k])
 
         if any(a.currency == cls.CURRENCY_TODO for a in result):
-            # TODO sort
+            result.sort()
             cls.__yaml_dump(result)
             return result, True
         else:
