@@ -6,6 +6,13 @@ import yaml
 from monarchmoney import MonarchMoney
 
 
+class AccountsNeedEditing(Exception):
+    def __init__(self, config_file: str):
+        super().__init__(
+            f"Account currencies incomplete, update {config_file} and re-run"
+        )
+
+
 @dataclass(order=True)
 class Account(yaml.YAMLObject):
     # User has yet to define how to handle this account
@@ -69,31 +76,23 @@ class Account(yaml.YAMLObject):
             return []
 
     @classmethod
-    async def load(
-        cls, mm: MonarchMoney, config_file: Optional[str]
-    ) -> tuple[List[Account], bool]:
-        """Returns true in config needs editing"""
+    async def load(cls, mm: MonarchMoney, config_file: Optional[str]) -> List[Account]:
         monarch_list = await cls.__fetch_from_monarch(mm)
-        monarch = {a.id: a for a in monarch_list}
 
         config_list = cls.__yaml_load(config_file)
-        config = {a.id: a for a in config_list}
+        config_ids = {a.id for a in config_list}
 
-        new_list = []
-        keys = set(monarch.keys()).union(config.keys())
-        for k in keys:
-            if a := config.get(k):
+        # See if anything new needs adding to the list
+        new_list = config_list.copy()
+        for a in monarch_list:
+            if not a.id in config_ids:
                 new_list.append(a)
-            else:
-                new_list.append(monarch[k])
-
         if any(a.needs_editing() for a in new_list):
             new_list.sort()
             cls.__yaml_dump(config_file, new_list)
-            return new_list, True
-        else:
-            result = [a for a in config_list if not a.skip()]
-            return result, False
+            raise AccountsNeedEditing(config_file)
+
+        return [a for a in config_list if not a.skip()]
 
     @classmethod
     def all_currencies(cls, accounts: List[Account]) -> Set[str]:

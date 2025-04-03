@@ -23,22 +23,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--year", type=int, default=last_year, help="Tax year to calculate"
     )
-    args = parser.parse_args()
+    return parser.parse_args()
 
 
 async def main():
-    args = parse_args()
+    try:
+        args = parse_args()
 
-    mm = await login()
-    accounts, incomplete = await Account.load(mm, config_file=args.accounts)
-    if incomplete:
-        log.warning(
-            f"Account currencies incomplete, update {args.accounts}l and re-run."
-        )
-        return
+        mm = await login()
+        accounts = await Account.load(mm, config_file=args.accounts)
 
-    currencies = Account.all_currencies(accounts)
-    xchg = ExchangeRates(args.year, currencies)
+        currencies = Account.all_currencies(accounts)
+        xchg = ExchangeRates(args.year, currencies)
+    except Exception as e:
+        log.critical(e)
+        exit(1)
 
 
 if __name__ == "__main__":
