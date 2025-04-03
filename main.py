@@ -12,7 +12,6 @@ async def main():
     if incomplete:
         log.warning("Account currencies incomplete, update accounts.yaml and re-run.")
         return
-    # TODO
 
 
 if __name__ == "__main__":

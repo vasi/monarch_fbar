@@ -27,6 +27,12 @@ class Account(yaml.YAMLObject):
     yaml_dumper = yaml.SafeDumper
     yaml_tag = "tag:yaml.org,2002:map"
 
+    def needs_editing(self) -> bool:
+        return self.currency.upper() == self.CURRENCY_TODO
+
+    def skip(self) -> bool:
+        return self.currency.upper() == self.CURRENCY_SKIP
+
     @classmethod
     async def __fetch_from_monarch(cls, mm: MonarchMoney) -> List[Account]:
         data = await mm.get_accounts()
@@ -68,17 +74,18 @@ class Account(yaml.YAMLObject):
         config_list = cls.__yaml_load()
         config = {a.id: a for a in config_list}
 
-        result = []
+        new_list = []
         keys = set(monarch.keys()).union(config.keys())
         for k in keys:
             if a := config.get(k):
-                result.append(a)
+                new_list.append(a)
             else:
-                result.append(monarch[k])
+                new_list.append(monarch[k])
 
-        if any(a.currency == cls.CURRENCY_TODO for a in result):
-            result.sort()
-            cls.__yaml_dump(result)
-            return result, True
+        if any(a.needs_editing() for a in new_list):
+            new_list.sort()
+            cls.__yaml_dump(new_list)
+            return new_list, True
         else:
-            return config_list, False
+            result = [a for a in config_list if not a.skip()]
+            return result, False
