@@ -1,11 +1,11 @@
 from __future__ import annotations
 from enum import auto, StrEnum
-from typing import Any, List, Optional, NewType, Union
+from typing import Any, List, IO, Optional, NewType, Union
 
 import asyncio
-
 from gql.transport.exceptions import TransportServerError
 from monarchmoney import MonarchMoney, LoginFailedException
+import yaml
 
 
 class CurrencySpecial(StrEnum):
@@ -17,7 +17,11 @@ CurrencyCode = NewType("Currency", str)
 Currency = Union[CurrencyCode, CurrencySpecial]
 
 
-class Account(object):
+class Account(yaml.YAMLObject):
+    yaml_loader = yaml.SafeLoader
+    yaml_dumper = yaml.SafeDumper
+    yaml_tag = "tag:yaml.org,2002:map"
+
     __EXCLUDED_TYPES = {"credit", "loan", "other_asset"}
 
     id: str
@@ -48,10 +52,31 @@ class Account(object):
                 currency=CurrencySpecial.TODO,
             )
             accounts.append(account)
+        # TODO: sort
         return accounts
 
     def __repr__(self) -> str:
         return f"<Account {self.name!r} {self.institution!r} {self.id} {self.currency}>"
+
+    @classmethod
+    def to_yaml(cls, dumper: yaml.Dumper, data: Account) -> Any:
+        return dumper.represent_mapping(
+            cls.yaml_tag,
+            {
+                "id": data.id,
+                "institution": data.institution,
+                "name": data.name,
+                "currency": str(data.currency),
+            },
+        )
+
+    @classmethod
+    def yaml_dump(cls, stream: IO, accounts: List[Account]):
+        yaml.safe_dump(accounts, stream, sort_keys=False)
+
+    @classmethod
+    def yaml_load(cls, stream: IO) -> List[Account]:
+        return yaml.load(stream, Loader=yaml.SafeLoader)
 
 
 async def redo_login() -> MonarchMoney:
@@ -76,8 +101,12 @@ async def login() -> MonarchMoney:
 
 async def main():
     mm = await login()
-    accounts = await Account.fetch_from_monarch(mm)
-    for a in accounts:
+    from_monarch = await Account.fetch_from_monarch(mm)
+    with open("accounts.yaml", "w") as f:
+        Account.yaml_dump(f, from_monarch)
+    with open("accounts.yaml") as f:
+        from_yaml = Account.yaml_load(f)
+    for a in from_yaml:
         print(a)
 
 
