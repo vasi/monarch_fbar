@@ -1,42 +1,30 @@
 from __future__ import annotations
-from enum import auto, StrEnum
 from dataclasses import dataclass
-from typing import Any, List, IO, Optional, NewType, Union
+from typing import Any, List, Optional
 
 import yaml
 from monarchmoney import MonarchMoney
 
 
-class CurrencySpecial(StrEnum):
-    TODO = auto()
-    SKIP = auto()
-
-
-CurrencyCode = NewType("Currency", str)
-Currency = Union[CurrencyCode, CurrencySpecial]
-
-
+@dataclass
 class Account(yaml.YAMLObject):
     CONFIG = "accounts.yaml"
 
-    yaml_loader = yaml.SafeLoader
-    yaml_dumper = yaml.SafeDumper
-    yaml_tag = "tag:yaml.org,2002:map"
-
     __EXCLUDED_TYPES = {"credit", "loan", "other_asset"}
+
+    # User has yet to define how to handle this account
+    CURRENCY_TODO = "TODO"
+    # User requests skipping this account
+    CURRENCY_SKIP = "SKIP"
 
     id: str
     institution: Optional[str]
     name: str
-    currency: Currency
+    currency: str
 
-    def __init__(
-        self, id: str, institution: Optional[str], name: str, currency: Currency
-    ):
-        self.id = id
-        self.institution = institution
-        self.name = name
-        self.currency = currency
+    yaml_loader = yaml.SafeLoader
+    yaml_dumper = yaml.SafeDumper
+    yaml_tag = "tag:yaml.org,2002:map"
 
     @classmethod
     async def __fetch_from_monarch(cls, mm: MonarchMoney) -> List[Account]:
@@ -50,25 +38,13 @@ class Account(yaml.YAMLObject):
                 id=a["id"],
                 institution=(a["institution"] or {}).get("name"),
                 name=a["displayName"],
-                currency=CurrencySpecial.TODO,
+                currency=cls.CURRENCY_TODO,
             )
             accounts.append(account)
         return accounts
 
     def __repr__(self) -> str:
         return f"<Account {self.name!r} {self.institution!r} {self.id} {self.currency}>"
-
-    @classmethod
-    def to_yaml(cls, dumper: yaml.Dumper, data: Account) -> Any:
-        return dumper.represent_mapping(
-            cls.yaml_tag,
-            {
-                "id": data.id,
-                "institution": data.institution,
-                "name": data.name,
-                "currency": str(data.currency),
-            },
-        )
 
     @classmethod
     def __yaml_dump(cls, accounts: List[Account]):
@@ -101,7 +77,7 @@ class Account(yaml.YAMLObject):
             else:
                 result.append(monarch[k])
 
-        if any(a.currency == CurrencySpecial.TODO for a in result):
+        if any(a.currency == cls.CURRENCY_TODO for a in result):
             # TODO sort
             cls.__yaml_dump(result)
             return result, True
