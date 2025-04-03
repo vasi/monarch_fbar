@@ -11,5 +11,7 @@ wheels/
 
 # Saved Monarch Money session
 .mm
-# Account configuration
+# Default account configuration
 accounts.yaml
+# VS Code config
+.vscode
