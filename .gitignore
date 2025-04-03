@@ -9,9 +9,10 @@ wheels/
 # Virtual environments
 .venv
 
-# Saved Monarch Money session
+# Saved config
 .mm
-# Default account configuration
 accounts.yaml
-# VS Code config
+credentials.yaml
+
+# Editor files
 .vscode

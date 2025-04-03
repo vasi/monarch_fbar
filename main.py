@@ -16,6 +16,10 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
+        "--credentials",
+        help="Path to YAML file containing credentials for Monarch Money. Valid keys are email, password, mfa_secret_key",
+    )
+    parser.add_argument(
         "--accounts",
         default="accounts.yaml",
         help="Path to YAML file with account configuration",
@@ -30,7 +34,7 @@ async def main():
     try:
         args = parse_args()
 
-        mm = await login()
+        mm = await login(args.credentials)
         accounts = await Account.load(mm, config_file=args.accounts)
 
         currencies = Account.all_currencies(accounts)

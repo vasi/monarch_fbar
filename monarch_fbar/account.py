@@ -30,7 +30,7 @@ class Account(yaml.YAMLObject):
 
     yaml_loader = yaml.SafeLoader
     yaml_dumper = yaml.SafeDumper
-    yaml_tag = "tag:yaml.org,2002:map"
+    yaml_tag = "!account"
 
     def needs_editing(self) -> bool:
         return self.currency.upper() == self.CURRENCY_TODO
