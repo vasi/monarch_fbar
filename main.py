@@ -1,17 +1,18 @@
 import asyncio
+import logging
 
 from monarch_fbar import Account, login
+
+log = logging.getLogger(__name__)
 
 
 async def main():
     mm = await login()
-    from_monarch = await Account.fetch_from_monarch(mm)
-    with open("accounts.yaml", "w") as f:
-        Account.yaml_dump(f, from_monarch)
-    with open("accounts.yaml") as f:
-        from_yaml = Account.yaml_load(f)
-    for a in from_yaml:
-        print(a)
+    accounts, incomplete = await Account.load_merged(mm)
+    if incomplete:
+        log.warning("Account currencies incomplete, update accounts.yaml and re-run.")
+        return
+    # TODO
 
 
 if __name__ == "__main__":

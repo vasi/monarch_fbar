@@ -1,5 +1,6 @@
 from __future__ import annotations
 from enum import auto, StrEnum
+from dataclasses import dataclass
 from typing import Any, List, IO, Optional, NewType, Union
 
 import yaml
@@ -16,6 +17,8 @@ Currency = Union[CurrencyCode, CurrencySpecial]
 
 
 class Account(yaml.YAMLObject):
+    CONFIG = "accounts.yaml"
+
     yaml_loader = yaml.SafeLoader
     yaml_dumper = yaml.SafeDumper
     yaml_tag = "tag:yaml.org,2002:map"
@@ -36,7 +39,7 @@ class Account(yaml.YAMLObject):
         self.currency = currency
 
     @classmethod
-    async def fetch_from_monarch(cls, mm: MonarchMoney) -> List[Account]:
+    async def __fetch_from_monarch(cls, mm: MonarchMoney) -> List[Account]:
         data = await mm.get_accounts()
         accounts = []
         for a in data["accounts"]:
@@ -50,7 +53,6 @@ class Account(yaml.YAMLObject):
                 currency=CurrencySpecial.TODO,
             )
             accounts.append(account)
-        # TODO: sort
         return accounts
 
     def __repr__(self) -> str:
@@ -69,9 +71,39 @@ class Account(yaml.YAMLObject):
         )
 
     @classmethod
-    def yaml_dump(cls, stream: IO, accounts: List[Account]):
-        yaml.safe_dump(accounts, stream, sort_keys=False)
+    def __yaml_dump(cls, accounts: List[Account]):
+        with open(cls.CONFIG, "w") as f:
+            yaml.safe_dump(accounts, f, sort_keys=False)
 
     @classmethod
-    def yaml_load(cls, stream: IO) -> List[Account]:
-        return yaml.load(stream, Loader=yaml.SafeLoader)
+    def __yaml_load(cls) -> List[Account]:
+        try:
+            with open(cls.CONFIG) as f:
+                return yaml.safe_load(f)
+
+        except FileNotFoundError:
+            return []
+
+    @classmethod
+    async def load_merged(cls, mm: MonarchMoney) -> tuple[List[Account], bool]:
+        """Returns true in config needs editing"""
+        monarch_list = await cls.__fetch_from_monarch(mm)
+        monarch = {a.id: a for a in monarch_list}
+
+        config_list = cls.__yaml_load()
+        config = {a.id: a for a in config_list}
+
+        result = []
+        keys = set(monarch.keys()).union(config.keys())
+        for k in keys:
+            if a := config.get(k):
+                result.append(a)
+            else:
+                result.append(monarch[k])
+
+        if any(a.currency == CurrencySpecial.TODO for a in result):
+            # TODO sort
+            cls.__yaml_dump(result)
+            return result, True
+        else:
+            return config_list, False
