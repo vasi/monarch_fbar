@@ -58,7 +58,7 @@ class ExchangeRates(object):
         if all(d < target_date for d in data.keys()):
             raise ExchangeRateMissingYear(year)
 
-        # Fill in any blanks, and remove data we don't need
+        # Fill in any blanks
         d = first_date
         last = None
         while d.year <= year:
@@ -66,9 +66,12 @@ class ExchangeRates(object):
                 last = cur
             else:
                 data[d] = last
-            if d in data:
-                del data[d]
             d += self.DAY
+
+        # Remove data we don't want
+        for d in list(data.keys()):
+            if d.year != year:
+                del data[d]
 
         return data
 
