@@ -88,7 +88,9 @@ class Account(yaml.YAMLObject):
             if not a.id in config_ids:
                 new_list.append(a)
         if any(a.needs_editing() for a in new_list):
-            new_list.sort()
+            if not config_list:
+                # only sort if all new, otherwise respect user sorting
+                new_list.sort()
             cls.__yaml_dump(config_file, new_list)
             raise AccountsNeedEditing(config_file)
 
