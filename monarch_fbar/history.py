@@ -45,7 +45,7 @@ class History(object):
         local_at_max = None
 
         for d, local in balances.items():
-            usd = self.xchg.to_usd(d, account.currency, local)
+            usd = self.xchg.to_usd(d, account.currency_symbol(), local)
             if usd > max_usd:
                 max_usd = usd
                 date_at_max = d
