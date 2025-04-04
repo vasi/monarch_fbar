@@ -76,4 +76,4 @@ class History(object):
                     max.local_at_max,
                 ]
             )
-        print(tabulate(table, headers=headers, floatfmt=".2f"))
+        print(tabulate(table, headers=headers, floatfmt=".0f"))
