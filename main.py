@@ -3,7 +3,7 @@ import asyncio
 import datetime
 import logging
 
-from monarch_fbar import Account, ExchangeRates, login
+from monarch_fbar import Account, ExchangeRates, login, report_maxes
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +39,12 @@ async def main():
 
         currencies = Account.all_currencies(accounts)
         xchg = ExchangeRates(args.year, currencies)
+
+        maxes = report_maxes(mm, xchg, accounts)
+
     except Exception as e:
+        if not e.__class__.__module__.startswith("monarch_fbar"):
+            raise e  # unexpected!
         log.critical(e)
         exit(1)
 
