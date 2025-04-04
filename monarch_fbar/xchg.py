@@ -18,7 +18,6 @@ class ExchangeRateMissingCurrency(Exception):
 
 
 class ExchangeRates(object):
-    CACHE = ".mm/exchange_rates.csv"
     URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.zip"
     DAY = timedelta(days=1)
 
